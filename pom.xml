@@ -14,6 +14,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <version.camunda>7.22.0</version.camunda>
+        <version.operaton>1.0.0-beta-3-SNAPSHOT</version.operaton>
     </properties>
 
     <dependencies>
@@ -79,12 +80,33 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.operaton.bpm</groupId>
+            <artifactId>operaton-engine</artifactId>
+            <version>${version.operaton}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.operaton.bpm</groupId>
+            <artifactId>operaton-engine</artifactId>
+            <version>${version.operaton}</version>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+
         <!-- test dependencies -->
 
         <dependency>
             <groupId>org.openrewrite</groupId>
             <artifactId>rewrite-test</artifactId>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
