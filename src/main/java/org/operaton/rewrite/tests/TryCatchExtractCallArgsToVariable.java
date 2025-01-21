@@ -41,18 +41,18 @@ public class TryCatchExtractCallArgsToVariable extends Recipe {
 
       @Override
       public @NonNull J.Try visitTry(@NonNull J.Try tryable, @NonNull ExecutionContext ctx) {
-        Optional<J.MethodInvocation> statementBeforeFail = getStatementBeforeFail(tryable);
-        if (!statementBeforeFail.isPresent()) {
+        if (!getStatementBeforeFail(tryable).isPresent()) {
           return tryable;
         }
+        J.MethodInvocation statementBeforeFail = getStatementBeforeFail(tryable).get();
+        Map<String, J.MethodInvocation> newVariables = new HashMap<>();
 
-        List<Expression> arguments = statementBeforeFail.get().getArguments();
+        List<Expression> arguments = statementBeforeFail.getArguments();
         if (arguments.stream().noneMatch(arg -> arg instanceof J.MethodInvocation)) {
           return tryable;
         }
 
         List<Expression> newArguments = new ArrayList<>();
-        Map<String, J.MethodInvocation> newVariables = new HashMap<>();
         for (int i = 0; i < arguments.size(); i++) {
           if (arguments.get(i) instanceof J.MethodInvocation) {
             J.MethodInvocation methodInvocation = (J.MethodInvocation) arguments.get(i);
@@ -67,10 +67,10 @@ public class TryCatchExtractCallArgsToVariable extends Recipe {
           }
         }
 
-        J.MethodInvocation newStatementBeforeFail = statementBeforeFail.get()
+        statementBeforeFail = statementBeforeFail
           .withArguments(newArguments);
 
-        Optional<TextComment> whenComment = statementBeforeFail.get()
+        Optional<TextComment> whenComment = statementBeforeFail
           .getPrefix()
           .getComments()
           .stream()
@@ -83,20 +83,20 @@ public class TryCatchExtractCallArgsToVariable extends Recipe {
           comments.add(new TextComment(false, " when", "\n" + tryable.getPrefix().getIndent(), Markers.EMPTY));
           tryable = tryable.withComments(comments);
 
-          newStatementBeforeFail = newStatementBeforeFail.withComments(emptyList());
+          statementBeforeFail = statementBeforeFail.withComments(emptyList());
         }
 
-        J.MethodInvocation finalStatementBeforeFail = newStatementBeforeFail;
+        J.MethodInvocation finalStatementBeforeFail = statementBeforeFail;
 
         tryable = tryable.withBody(tryable.getBody()
           .withStatements(tryable.getBody()
             .getStatements()
             .stream()
-            .map(stmt -> stmt == statementBeforeFail.get() ? finalStatementBeforeFail : stmt)
+            .map(stmt -> stmt == finalStatementBeforeFail ? finalStatementBeforeFail : stmt)
             .collect(Collectors.toList())));
 
         tryable = tryable.withBody(
-          replaceStatement(tryable.getBody(), statementBeforeFail.get(), newStatementBeforeFail));
+          replaceStatement(tryable.getBody(), statementBeforeFail, statementBeforeFail));
 
         if (!newVariables.isEmpty()) {
           getCursor().dropParentUntil(J.Block.class::isInstance).putMessage("newVariable", newVariables);
@@ -132,6 +132,25 @@ public class TryCatchExtractCallArgsToVariable extends Recipe {
         }
         String methodName = methodInvocation.getSimpleName();
         return methodName + "Result";
+      }
+
+      private Statement moveWhenComment (Statement statementBeforeFail, J.Try tryable) {
+        Optional<TextComment> whenComment = statementBeforeFail
+          .getPrefix()
+          .getComments()
+          .stream()
+          .filter(TextComment.class::isInstance)
+          .map(TextComment.class::cast)
+          .filter(comment -> comment.getText().trim().equals("when"))
+          .findFirst();
+        if (whenComment.isPresent()) {
+          List<Comment> comments = tryable.getComments();
+          comments.add(new TextComment(false, " when", "\n" + tryable.getPrefix().getIndent(), Markers.EMPTY));
+          tryable = tryable.withComments(comments);
+
+          statementBeforeFail = statementBeforeFail.withComments(emptyList());
+        }
+        return statementBeforeFail;
       }
 
       @Override

@@ -13,7 +13,7 @@ class TryCatchExtractCallArgsToVariableTest implements RewriteTest {
     }
 
     @Test
-    void rewriteTryCatchToAssertThatThrownBy() {
+    void rewriteTryCatchToAssertThatThrownBy_methodArguments() {
         rewriteRun(spec -> spec.cycles(4).expectedCyclesThatMakeChanges(1), java("""
             package org.operaton.rewrite.tests;
           
@@ -93,8 +93,8 @@ class TryCatchExtractCallArgsToVariableTest implements RewriteTest {
                   Comment createdComment = createComment(TASK_ID, null, "aComment");
                   var createdCommentId = createdComment.getId();
           
+                  // when
                   try {
-                      // when
                       taskService.deleteTaskComment(TASK_ID, createdCommentId);
                       fail("Exception expected: It should not be possible to delete a comment.");
                   } catch (AuthorizationException e) {
@@ -120,6 +120,100 @@ class TryCatchExtractCallArgsToVariableTest implements RewriteTest {
           
               }
           
+          }
+          """));
+    }
+
+    @Test
+    void rewriteTryCatchToAssertThatThrownBy() {
+        rewriteRun(spec -> spec.cycles(4).expectedCyclesThatMakeChanges(1), java("""
+          package org.operaton.rewrite.tests;
+          
+          import org.operaton.bpm.engine.AuthorizationException;
+          import org.operaton.bpm.engine.query.PeriodUnit;
+          import org.operaton.bpm.engine.runtime.ProcessInstance;
+          import org.operaton.bpm.engine.test.api.authorization.AuthorizationTest;
+          import static org.operaton.bpm.engine.authorization.Permissions.READ_HISTORY;
+          import static org.operaton.bpm.engine.authorization.Resources.PROCESS_DEFINITION;
+          
+          import org.junit.Test;
+          
+          import static org.junit.Assert.fail;
+          
+          public class Sample extends AuthorizationTest {
+              protected static final String PROCESS_KEY = "oneTaskProcess";
+              protected static final String MESSAGE_START_PROCESS_KEY = "messageStartProcess";
+          
+              @Test
+              public void testReportWithQueryCriterionProcessDefinitionIdInAndMissingReadHistoryPermission() {
+                  // given
+                  ProcessInstance processInstance1 = startProcessInstanceByKey(PROCESS_KEY);
+                  ProcessInstance processInstance2 = startProcessInstanceByKey(MESSAGE_START_PROCESS_KEY);
+                  disableAuthorization();
+                  runtimeService.deleteProcessInstance(processInstance1.getProcessInstanceId(), "");
+                  runtimeService.deleteProcessInstance(processInstance2.getProcessInstanceId(), "");
+                  enableAuthorization();
+          
+                  createGrantAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, READ_HISTORY);
+          
+                  // when
+                  try {
+                      historyService
+                        .createHistoricProcessInstanceReport()
+                        .processDefinitionIdIn(processInstance1.getProcessDefinitionId(), processInstance2.getProcessDefinitionId())
+                        .duration(PeriodUnit.MONTH);
+          
+                      // then
+                      fail("Exception expected: It should not be possible to create a historic process instance report");
+                  } catch (AuthorizationException e) {
+          
+                  }
+              }
+          }
+          """, """
+          package org.operaton.rewrite.tests;
+          
+          import org.operaton.bpm.engine.AuthorizationException;
+          import org.operaton.bpm.engine.query.PeriodUnit;
+          import org.operaton.bpm.engine.runtime.ProcessInstance;
+          import org.operaton.bpm.engine.test.api.authorization.AuthorizationTest;
+          import static org.operaton.bpm.engine.authorization.Permissions.READ_HISTORY;
+          import static org.operaton.bpm.engine.authorization.Resources.PROCESS_DEFINITION;
+          
+          import org.junit.Test;
+          
+          import static org.junit.Assert.fail;
+          
+          public class Sample extends AuthorizationTest {
+              protected static final String PROCESS_KEY = "oneTaskProcess";
+              protected static final String MESSAGE_START_PROCESS_KEY = "messageStartProcess";
+          
+              @Test
+              public void testReportWithQueryCriterionProcessDefinitionIdInAndMissingReadHistoryPermission() {
+                  // given
+                  ProcessInstance processInstance1 = startProcessInstanceByKey(PROCESS_KEY);
+                  ProcessInstance processInstance2 = startProcessInstanceByKey(MESSAGE_START_PROCESS_KEY);
+                  disableAuthorization();
+                  runtimeService.deleteProcessInstance(processInstance1.getProcessInstanceId(), "");
+                  runtimeService.deleteProcessInstance(processInstance2.getProcessInstanceId(), "");
+                  enableAuthorization();
+          
+                  createGrantAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, READ_HISTORY);
+                  var historicProcessInstanceReport = historyService
+                    .createHistoricProcessInstanceReport()
+                    .processDefinitionIdIn(processInstance1.getProcessDefinitionId(), processInstance2.getProcessDefinitionId());
+          
+                  // when
+                  try {
+                      historicProcessInstanceReport
+                        .duration(PeriodUnit.MONTH);
+          
+                      // then
+                      fail("Exception expected: It should not be possible to create a historic process instance report");
+                  } catch (AuthorizationException e) {
+          
+                  }
+              }
           }
           """));
     }
